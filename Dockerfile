@@ -1,5 +1,5 @@
 FROM openjdk:11-jdk-slim
 
-COPY build/libs/template-kafka-processor-*-standalone.jar /opt/template-kafka-processor.jar
+COPY build/libs/kafka-processor-cosmos-tx-dispatch-*-standalone.jar /opt/kafka-processor-cosmos-tx-dispatch.jar
 
-ENTRYPOINT [ "java", "-jar", "/opt/template-kafka-processor.jar" ]
+ENTRYPOINT [ "java", "-jar", "/opt/kafka-processor-cosmos-tx-dispatch.jar" ]
