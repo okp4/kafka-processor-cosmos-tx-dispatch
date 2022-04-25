@@ -1,5 +1,8 @@
 package com.okp4.processor.cosmos
 
+import com.google.protobuf.ByteString
+import com.google.protobuf.ByteString.copyFrom
+import cosmos.tx.v1beta1.TxOuterClass
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.data.forAll
 import io.kotest.data.headers
@@ -10,39 +13,69 @@ import io.kotest.matchers.shouldNotBe
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.TopologyTestDriver
+import java.util.Base64.getDecoder
+
+fun String.b64ToByteString(): ByteString = copyFrom(getDecoder().decode(this))
+
+val tx1: ByteArray = TxOuterClass.TxRaw.newBuilder()
+    .addSignatures("2utl1VHdSC3pyHCNgeNmgGImnEChQcd9sWEgi4Uc4lwOhWhrqYy8WkJ8xNkVzjF/WVg3ayVWZp8ipVzO1kUK9g==".b64ToByteString())
+    .setAuthInfoBytes("Ck4KRgofL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIjCiECf1JPoIG8+pMDKtmH2vtOg5+xvfNxoDXV0iD++Ha5a/0SBAoCCAESBBDAmgw=".b64ToByteString())
+    .setBodyBytes(
+        "CoUBChwvY29zbW9zLmJhbmsudjFiZXRhMS5Nc2dTZW5kEmUKK29rcDQxcmhkODc0NHU0dnF2Y2p1dnlmbThmZWE0azltZWZlM2s1N3F6MjcSK29rcDQxOTY4NzdkajRjcnB4bWphMnd3MmhqMnZneTQ1djZ1c3Bremt0OGwaCQoEa25vdxIBMw==".b64ToByteString()
+    ).build().toByteArray()
+val tx2: ByteArray = TxOuterClass.TxRaw.newBuilder()
+    .addSignatures("2utl1VHdSC3pyHCNgeNmgGImnEChQcd9sWEgi4Uc4lwOhWhrqYy8WkJ8xNkVzjF/WVg3ayVWZp8ipVzO1kUK9g==".b64ToByteString())
+    .setAuthInfoBytes("Ck4KRgofL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIjCiECf1JPoIG8+pMDKtmH2vtOg5+xvfNxoDXV0iD++Ha5a/0SBAoCCAESBBDAmgw=".b64ToByteString())
+    .setBodyBytes(
+        "CgEKHC9jb3Ntb3MuYmFuay52MWJldGExLk1zZ1Rlc3QSZQorb2twNDFyaGQ4NzQ0dTR2cXZjanV2eWZtOGZlYTRrOW1lZmUzazU3cXoyNxIrb2twNDE5Njg3N2RqNGNycHhtamEyd3cyaGoydmd5NDV2NnVzcGt6a3Q4bBoJCgRrbm93EgEzCg==".b64ToByteString()
+    ).build().toByteArray()
+val tx3: ByteArray = TxOuterClass.TxRaw.newBuilder()
+    .addSignatures("2utl1VHdSC3pyHCNgeNmgGImnEChQcd9sWEgi4Uc4lwOhWhrqYy8WkJ8xNkVzjF/WVg3ayVWZp8ipVzO1kUK9g==".b64ToByteString())
+    .setAuthInfoBytes("Ck4KRgofL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIjCiECf1JPoIG8+pMDKtmH2vtOg5+xvfNxoDXV0iD++Ha5a/0SBAoCCAESBBDAmgw=".b64ToByteString())
+    .setBodyBytes(
+        "CoUBChwvY29zbW9zLmJhbmsudjFiZXRhMS5Nc2dTZW5kEmUKK29rcDQxcmhkODc0NHU0dnF2Y2p1dnlmbThmZWE0azltZWZlM2s1N3F6MjcSK29rcDQxOTY4NzdkajRjcnB4bWphMnd3MmhqMnZneTQ1djZ1c3Bremt0OGwaCQoEa25vdxIBMw==".b64ToByteString()
+    ).build().toByteArray()
+val txError: ByteArray = "test".toByteArray()
 
 class TopologyTest : BehaviorSpec({
     val stringSerde = Serdes.StringSerde()
-    val config = mapOf(
-        StreamsConfig.APPLICATION_ID_CONFIG to "simple",
-        StreamsConfig.BOOTSTRAP_SERVERS_CONFIG to "dummy:1234",
-        "topic.in" to "in",
-        "topic.out" to "out",
-        "topic.error" to "error"
-    ).toProperties()
+    val byteArraySerde = Serdes.ByteArraySerde()
 
-    given("A topology") {
-        val topology = topology(config)
-        val testDriver = TopologyTestDriver(topology, config)
-        val inputTopic = testDriver.createInputTopic("in", stringSerde.serializer(), stringSerde.serializer())
-        val outputTopic = testDriver.createOutputTopic("out", stringSerde.deserializer(), stringSerde.deserializer())
-        val errorTopic = testDriver.createOutputTopic("error", stringSerde.deserializer(), stringSerde.deserializer())
+    table(
+        headers("case", "tx", "output-topic", "description"),
+        row(1, tx1, "topic-1", "filter tx to topic-1"),
+        row(2, tx2, "topic-2", "filter tx to topic-2"),
+        row(3, tx3, "dlq", "filter tx to dlq"),
+        row(4, txError, "error", "filter tx to error topic"),
+    ).forAll { case, tx, outputTopic, description ->
+        given("A topology for case <$case>: $description") {
+            val config = mutableMapOf(
+                StreamsConfig.APPLICATION_ID_CONFIG to "simple",
+                StreamsConfig.BOOTSTRAP_SERVERS_CONFIG to "dummy:1234",
+                "topic.in" to "in",
+                "topic.dlq" to "dlq",
+                "topic.error" to "error",
+                "rules.path" to (this::class.java.classLoader.getResource("rules_example.yaml")?.path ?: "")
+            ).toProperties()
+            
+            val topology = topology(config)//.also { println(it.describe()) }
+            val testDriver = TopologyTestDriver(topology, config)
+            val inputTopic = testDriver.createInputTopic("in", stringSerde.serializer(), byteArraySerde.serializer())
+            val outputTopics = mapOf(
+                "dlq" to testDriver.createOutputTopic("dlq", stringSerde.deserializer(), byteArraySerde.deserializer()),
+                "error" to testDriver.createOutputTopic("error", stringSerde.deserializer(), byteArraySerde.deserializer()),
+                "topic-1" to testDriver.createOutputTopic("topic-1", stringSerde.deserializer(), byteArraySerde.deserializer()),
+                "topic-2" to testDriver.createOutputTopic("topic-2", stringSerde.deserializer(), byteArraySerde.deserializer()),
+                "topic-3" to testDriver.createOutputTopic("topic-3", stringSerde.deserializer(), byteArraySerde.deserializer()),
+            )
 
-        table(
-            headers("case", "message", "isError", "expected"),
-            row("simple message", "John Doe", false, "Hello John Doe!"),
-            row("empty message", "  ", true, "  "),
-        ).forAll { case, message, isError, expected ->
-            When("sending the message <$message> to the input topic ($inputTopic) ($case)") {
-                inputTopic.pipeInput("", message)
+            `when`("sending the transaction to the input topic ($inputTopic)") {
+                inputTopic.pipeInput("", tx)
 
-                val topic = if (isError) errorTopic else outputTopic
-
-                then("message is received from the output topic ($topic)") {
-                    val result = topic.readKeyValue()
-
+                then("the transaction is sent to <$outputTopic> topic") {
+                    val result = outputTopics[outputTopic]?.readValue()
                     result shouldNotBe null
-                    result.value shouldBe expected
+                    result shouldBe tx
                 }
             }
         }

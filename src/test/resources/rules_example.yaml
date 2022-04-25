@@ -1,0 +1,10 @@
+rules:
+  - name: "rule_1"
+    topic: "topic-1"
+    predicate: "/body/message[type_url='/cosmos.bank.v1beta1.MsgSend']"
+  - name: "rule_2"
+    topic: "topic-2"
+    predicate: "/body/message[@type='/cosmos.bank.v1beta1.MsgSend']"
+  - name: "rule_3"
+    topic: "topic-3"
+    predicate: "/body/message"

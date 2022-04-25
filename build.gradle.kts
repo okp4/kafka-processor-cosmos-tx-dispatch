@@ -39,6 +39,13 @@ afterEvaluate {
 
 repositories {
     mavenCentral()
+    maven {
+        url = uri("https://maven.pkg.github.com/okp4/kafka-connector-cosmos")
+        credentials {
+            username = project.property("maven.credentials.username") as String
+            password = project.property("maven.credentials.password") as String
+        }
+    }
 }
 
 dependencies {
@@ -52,6 +59,20 @@ dependencies {
     val micrometerVersion = "1.8.5"
     api("io.micrometer:micrometer-core:$micrometerVersion")
     api("io.micrometer:micrometer-registry-prometheus:$micrometerVersion")
+
+    val cosmosSdkVersion = "1.1"
+    implementation("com.okp4.grpc:cosmos-sdk:$cosmosSdkVersion")
+
+    val grpcVersion = "1.45.1"
+    api("io.grpc:grpc-protobuf:$grpcVersion")
+
+    val jacksonVersion = "2.11.2"
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
+    implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jacksonVersion")
+
+    val jxPathVersion = "1.3"
+    api("commons-jxpath:commons-jxpath:$jxPathVersion")
 
     testImplementation(kotlin("test"))
 
