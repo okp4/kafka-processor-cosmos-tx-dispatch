@@ -23,17 +23,24 @@ val tx1: ByteArray = TxOuterClass.TxRaw.newBuilder()
     .setBodyBytes(
         "CoUBChwvY29zbW9zLmJhbmsudjFiZXRhMS5Nc2dTZW5kEmUKK29rcDQxcmhkODc0NHU0dnF2Y2p1dnlmbThmZWE0azltZWZlM2s1N3F6MjcSK29rcDQxOTY4NzdkajRjcnB4bWphMnd3MmhqMnZneTQ1djZ1c3Bremt0OGwaCQoEa25vdxIBMw==".b64ToByteString()
     ).build().toByteArray()
-val tx2: ByteArray = TxOuterClass.TxRaw.newBuilder()
+val tx2: ByteArray = TxOuterClass.Tx.newBuilder()
     .addSignatures("2utl1VHdSC3pyHCNgeNmgGImnEChQcd9sWEgi4Uc4lwOhWhrqYy8WkJ8xNkVzjF/WVg3ayVWZp8ipVzO1kUK9g==".b64ToByteString())
-    .setAuthInfoBytes("Ck4KRgofL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIjCiECf1JPoIG8+pMDKtmH2vtOg5+xvfNxoDXV0iD++Ha5a/0SBAoCCAESBBDAmgw=".b64ToByteString())
-    .setBodyBytes(
-        "CgEKHC9jb3Ntb3MuYmFuay52MWJldGExLk1zZ1Rlc3QSZQorb2twNDFyaGQ4NzQ0dTR2cXZjanV2eWZtOGZlYTRrOW1lZmUzazU3cXoyNxIrb2twNDE5Njg3N2RqNGNycHhtamEyd3cyaGoydmd5NDV2NnVzcGt6a3Q4bBoJCgRrbm93EgEzCg==".b64ToByteString()
+    .setAuthInfo(
+        TxOuterClass.AuthInfo.newBuilder()
+            .mergeFrom("Ck4KRgofL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIjCiECf1JPoIG8+pMDKtmH2vtOg5+xvfNxoDXV0iD++Ha5a/0SBAoCCAESBBDAmgw=".b64ToByteString())
+            .build()
+    ).setBody(
+        TxOuterClass.TxBody.newBuilder().addMessages(
+            com.google.protobuf.Any.newBuilder().setTypeUrl("/cosmos.bank.v1beta1.MsgTest")
+                .setValue(ByteString.copyFromUtf8("test message")).build()
+        ).build()
     ).build().toByteArray()
-val tx3: ByteArray = TxOuterClass.TxRaw.newBuilder()
+val tx3: ByteArray = TxOuterClass.Tx.newBuilder()
     .addSignatures("2utl1VHdSC3pyHCNgeNmgGImnEChQcd9sWEgi4Uc4lwOhWhrqYy8WkJ8xNkVzjF/WVg3ayVWZp8ipVzO1kUK9g==".b64ToByteString())
-    .setAuthInfoBytes("Ck4KRgofL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIjCiECf1JPoIG8+pMDKtmH2vtOg5+xvfNxoDXV0iD++Ha5a/0SBAoCCAESBBDAmgw=".b64ToByteString())
-    .setBodyBytes(
-        "CoUBChwvY29zbW9zLmJhbmsudjFiZXRhMS5Nc2dTZW5kEmUKK29rcDQxcmhkODc0NHU0dnF2Y2p1dnlmbThmZWE0azltZWZlM2s1N3F6MjcSK29rcDQxOTY4NzdkajRjcnB4bWphMnd3MmhqMnZneTQ1djZ1c3Bremt0OGwaCQoEa25vdxIBMw==".b64ToByteString()
+    .setAuthInfo(
+        TxOuterClass.AuthInfo.getDefaultInstance()
+    ).setBody(
+        TxOuterClass.TxBody.getDefaultInstance()
     ).build().toByteArray()
 val txError: ByteArray = "test".toByteArray()
 
@@ -57,16 +64,32 @@ class TopologyTest : BehaviorSpec({
                 "topic.error" to "error",
                 "rules.path" to (this::class.java.classLoader.getResource("rules_example.yaml")?.path ?: "")
             ).toProperties()
-            
-            val topology = topology(config)//.also { println(it.describe()) }
+
+            val topology = topology(config).also { println(it.describe()) }
             val testDriver = TopologyTestDriver(topology, config)
             val inputTopic = testDriver.createInputTopic("in", stringSerde.serializer(), byteArraySerde.serializer())
             val outputTopics = mapOf(
                 "dlq" to testDriver.createOutputTopic("dlq", stringSerde.deserializer(), byteArraySerde.deserializer()),
-                "error" to testDriver.createOutputTopic("error", stringSerde.deserializer(), byteArraySerde.deserializer()),
-                "topic-1" to testDriver.createOutputTopic("topic-1", stringSerde.deserializer(), byteArraySerde.deserializer()),
-                "topic-2" to testDriver.createOutputTopic("topic-2", stringSerde.deserializer(), byteArraySerde.deserializer()),
-                "topic-3" to testDriver.createOutputTopic("topic-3", stringSerde.deserializer(), byteArraySerde.deserializer()),
+                "error" to testDriver.createOutputTopic(
+                    "error",
+                    stringSerde.deserializer(),
+                    byteArraySerde.deserializer()
+                ),
+                "topic-1" to testDriver.createOutputTopic(
+                    "topic-1",
+                    stringSerde.deserializer(),
+                    byteArraySerde.deserializer()
+                ),
+                "topic-2" to testDriver.createOutputTopic(
+                    "topic-2",
+                    stringSerde.deserializer(),
+                    byteArraySerde.deserializer()
+                ),
+                "topic-3" to testDriver.createOutputTopic(
+                    "topic-3",
+                    stringSerde.deserializer(),
+                    byteArraySerde.deserializer()
+                ),
             )
 
             `when`("sending the transaction to the input topic ($inputTopic)") {
