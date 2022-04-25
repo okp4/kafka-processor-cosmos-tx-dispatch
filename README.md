@@ -1,17 +1,19 @@
-# Kafka Processor Template
+# Kafka Processor Dispatch Cosmos TX
 
-> Template for Kafka Streams Processor project @okp4.
-
-[![version](https://img.shields.io/github/v/release/okp4/template-kafka-processor)](https://github.com/okp4/template-kafka-processor/releases)
-[![build](https://github.com/okp4/template-kafka-processor/actions/workflows/build.yml/badge.svg)](https://github.com/okp4/template-kafka-processor/actions/workflows/build.yml)
-[![lint](https://github.com/okp4/template-kafka-processor/actions/workflows/lint.yml/badge.svg)](https://github.com/okp4/template-kafka-processor/actions/workflows/lint.yml)
-[![test](https://github.com/okp4/template-kafka-processor/actions/workflows/test.yml/badge.svg)](https://github.com/okp4/template-kafka-processor/actions/workflows/test.yml)
+[![version](https://img.shields.io/github/v/release/okp4/kafka-processor-cosmos-tx-dispatch)](https://github.com/okp4/kafka-processor-cosmos-tx-dispatch/releases)
+[![build](https://github.com/okp4/kafka-processor-cosmos-tx-dispatch/actions/workflows/build.yml/badge.svg)](https://github.com/okp4/kafka-processor-cosmos-tx-dispatch/actions/workflows/build.yml)
+[![lint](https://github.com/okp4/kafka-processor-cosmos-tx-dispatch/actions/workflows/lint.yml/badge.svg)](https://github.com/okp4/kafka-processor-cosmos-tx-dispatch/actions/workflows/lint.yml)
+[![test](https://github.com/okp4/kafka-processor-cosmos-tx-dispatch/actions/workflows/test.yml/badge.svg)](https://github.com/okp4/kafka-processor-cosmos-tx-dispatch/actions/workflows/test.yml)
 [![conventional commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://conventionalcommits.org)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 ## Purpose
 
-TBD
+Kafka Streams Processor that consumes [CØSMOS](https://github.com/cosmos/cosmos-sdk) and [OKP4](https://github.com/okp4/okp4d) Protobuf messages from an `input` topic and dispatch them to `output` topics relying on routing rules.
+
+<p align="center">
+  <img src="./docs/overview.png">
+</p>
 
 ## Implementation
 
