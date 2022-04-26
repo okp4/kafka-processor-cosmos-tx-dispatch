@@ -59,10 +59,8 @@ fun topology(props: Properties): Topology {
                     getEvaluatedTxList(v, txDispatchRules)
                 }, Named.`as`("evaluate-tx"))
                     .flatMapValues(
-                        { list ->
-                            list.map { subList ->
-                                subList
-                            }
+                        { it ->
+                            it
                         }, Named.`as`("flat-evaluated-tx-list")
                         )
                         .split()
@@ -178,3 +176,4 @@ fun topology(props: Properties): Topology {
                                             }
                                             return results
                                         }
+                                        
