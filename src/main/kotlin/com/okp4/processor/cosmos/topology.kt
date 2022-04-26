@@ -17,6 +17,14 @@ enum class FilteredTxType(val code: Int) {
     UNFILTERED(-2),
 }
 
+fun TxOuterClass.TxRaw.toTx(): TxOuterClass.Tx {
+    return TxOuterClass.Tx.newBuilder()
+        .addAllSignatures(this.signaturesList)
+        .setBody(TxOuterClass.TxBody.parseFrom(this.bodyBytes))
+        .setAuthInfo(TxOuterClass.AuthInfo.parseFrom(this.authInfoBytes))
+        .build()
+}
+
 /**
  * Simple Kafka Stream Processor that consumes a block on a topic and returns his transactions on another.
  */
@@ -42,13 +50,7 @@ fun topology(props: Properties): Topology {
                     Pair(
                         v,
                         kotlin.runCatching {
-                            val txRaw = TxOuterClass.TxRaw.parseFrom(v)
-
-                            TxOuterClass.Tx.newBuilder()
-                                .addAllSignatures(txRaw.signaturesList)
-                                .setBody(TxOuterClass.TxBody.parseFrom(txRaw.bodyBytes))
-                                .setAuthInfo(TxOuterClass.AuthInfo.parseFrom(txRaw.authInfoBytes))
-                                .build()
+                            TxOuterClass.TxRaw.parseFrom(v).toTx()
                         }
                     )
                 }, Named.`as`("tx-deserialization")
@@ -176,4 +178,3 @@ fun topology(props: Properties): Topology {
                                             }
                                             return results
                                         }
-                                        
