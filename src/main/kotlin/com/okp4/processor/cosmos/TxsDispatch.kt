@@ -26,7 +26,7 @@ class TxsDispatch(private val configDocPath: String) {
     init {
         mapper.registerKotlinModule()
     }
-    
+
     fun getTxDispatchList(): TxDispatchRules {
         return try {
             Files.newBufferedReader(Path.of(configDocPath)).use {
