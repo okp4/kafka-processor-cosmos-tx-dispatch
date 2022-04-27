@@ -1,10 +1,11 @@
+# predicate documentation : https://github.com/json-path/JsonPath
 rules:
-  - name: "rule_1"
+  - name: "message-type-MsgSend"
     topic: "topic-1"
-    predicate: "/body/message[type_url='/cosmos.bank.v1beta1.MsgSend']"
-  - name: "rule_2"
+    predicate: "$.body.messages[?(@.@type == 'type.googleapis.com/cosmos.bank.v1beta1.MsgSend')]"
+  - name: "from-address-okp41rhd8744u4vqvcjuvyfm8fea4k9mefe3k57qz27"
     topic: "topic-2"
-    predicate: "/body/message[@type='/cosmos.bank.v1beta1.MsgSend']"
-  - name: "rule_3"
+    predicate: "$..messages[?(@.fromAddress == 'okp41rhd8744u4vqvcjuvyfm8fea4k9mefe3k57qz27')]"
+  - name: "nop-rule"
     topic: "topic-3"
-    predicate: "/body/message"
+    predicate: "$.nop"

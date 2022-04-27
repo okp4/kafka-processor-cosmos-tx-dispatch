@@ -2,6 +2,8 @@ package com.okp4.processor.cosmos
 
 import com.google.protobuf.ByteString
 import com.google.protobuf.ByteString.copyFrom
+import cosmos.bank.v1beta1.Tx
+import cosmos.base.v1beta1.CoinOuterClass
 import cosmos.tx.v1beta1.TxOuterClass
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.data.forAll
@@ -17,11 +19,23 @@ import java.util.Base64.getDecoder
 
 fun String.b64ToByteString(): ByteString = copyFrom(getDecoder().decode(this))
 
-val tx1: ByteArray = TxOuterClass.TxRaw.newBuilder()
+val tx1: ByteArray = TxOuterClass.Tx.newBuilder()
     .addSignatures("2utl1VHdSC3pyHCNgeNmgGImnEChQcd9sWEgi4Uc4lwOhWhrqYy8WkJ8xNkVzjF/WVg3ayVWZp8ipVzO1kUK9g==".b64ToByteString())
-    .setAuthInfoBytes("Ck4KRgofL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIjCiECf1JPoIG8+pMDKtmH2vtOg5+xvfNxoDXV0iD++Ha5a/0SBAoCCAESBBDAmgw=".b64ToByteString())
-    .setBodyBytes(
-        "CoUBChwvY29zbW9zLmJhbmsudjFiZXRhMS5Nc2dTZW5kEmUKK29rcDQxcmhkODc0NHU0dnF2Y2p1dnlmbThmZWE0azltZWZlM2s1N3F6MjcSK29rcDQxOTY4NzdkajRjcnB4bWphMnd3MmhqMnZneTQ1djZ1c3Bremt0OGwaCQoEa25vdxIBMw==".b64ToByteString()
+    .setAuthInfo(
+        TxOuterClass.AuthInfo.newBuilder()
+            .mergeFrom("Ck4KRgofL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIjCiECf1JPoIG8+pMDKtmH2vtOg5+xvfNxoDXV0iD++Ha5a/0SBAoCCAESBBDAmgw=".b64ToByteString())
+            .build()
+    ).setBody(
+        TxOuterClass.TxBody.newBuilder()
+            .addMessages(
+                com.google.protobuf.Any.pack(
+                    Tx.MsgSend.newBuilder()
+                        .addAmount(CoinOuterClass.Coin.getDefaultInstance())
+                        .setFromAddress("testFrom")
+                        .setToAddress("tesTo")
+                        .build()
+                )
+            )
     ).build().toByteArray()
 val tx2: ByteArray = TxOuterClass.Tx.newBuilder()
     .addSignatures("2utl1VHdSC3pyHCNgeNmgGImnEChQcd9sWEgi4Uc4lwOhWhrqYy8WkJ8xNkVzjF/WVg3ayVWZp8ipVzO1kUK9g==".b64ToByteString())
@@ -30,10 +44,17 @@ val tx2: ByteArray = TxOuterClass.Tx.newBuilder()
             .mergeFrom("Ck4KRgofL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIjCiECf1JPoIG8+pMDKtmH2vtOg5+xvfNxoDXV0iD++Ha5a/0SBAoCCAESBBDAmgw=".b64ToByteString())
             .build()
     ).setBody(
-        TxOuterClass.TxBody.newBuilder().addMessages(
-            com.google.protobuf.Any.newBuilder().setTypeUrl("/cosmos.bank.v1beta1.MsgTest")
-                .setValue(ByteString.copyFromUtf8("test message")).build()
-        ).build()
+        TxOuterClass.TxBody.newBuilder()
+            .addMessages(
+                com.google.protobuf.Any.pack(
+                    Tx.MsgSend.newBuilder()
+                        .addAmount(CoinOuterClass.Coin.getDefaultInstance())
+                        .setToAddress("okp41wwr8ye24766rmjjh7eva0rc2p7cnwa8py6s6fc")
+                        .setFromAddress("okp41rhd8744u4vqvcjuvyfm8fea4k9mefe3k57qz27")
+                        .build()
+                )
+            )
+            .build()
     ).build().toByteArray()
 val tx3: ByteArray = TxOuterClass.Tx.newBuilder()
     .addSignatures("2utl1VHdSC3pyHCNgeNmgGImnEChQcd9sWEgi4Uc4lwOhWhrqYy8WkJ8xNkVzjF/WVg3ayVWZp8ipVzO1kUK9g==".b64ToByteString())
@@ -50,10 +71,10 @@ class TopologyTest : BehaviorSpec({
 
     table(
         headers("case", "tx", "output-topic", "description"),
-        row(1, tx1, "topic-1", "filter tx to topic-1"),
-        row(2, tx2, "topic-2", "filter tx to topic-2"),
-        row(3, tx3, "dlq", "filter tx to dlq"),
-        row(4, txError, "error", "filter tx to error topic"),
+        row(1, tx1, listOf("topic-1"), "filter tx to topic-1"),
+        row(2, tx2, listOf("topic-1", "topic-2"), "filter tx to topic-2"),
+        row(3, tx3, listOf("dlq"), "filter tx to dlq"),
+        row(4, txError, listOf("error"), "filter tx to error topic"),
     ).forAll { case, tx, outputTopic, description ->
         given("A topology for case <$case>: $description") {
             val config = mutableMapOf(
@@ -65,7 +86,7 @@ class TopologyTest : BehaviorSpec({
                 "rules.path" to (this::class.java.classLoader.getResource("rules_example.yaml")?.path ?: "")
             ).toProperties()
 
-            val topology = topology(config).also { println(it.describe()) }
+            val topology = topology(config, protoTypeRegistry).also { println(it.describe()) }
             val testDriver = TopologyTestDriver(topology, config)
             val inputTopic = testDriver.createInputTopic("in", stringSerde.serializer(), byteArraySerde.serializer())
             val outputTopics = mapOf(
@@ -96,9 +117,12 @@ class TopologyTest : BehaviorSpec({
                 inputTopic.pipeInput("", tx)
 
                 then("the transaction is sent to <$outputTopic> topic") {
-                    val result = outputTopics[outputTopic]?.readValue()
-                    result shouldNotBe null
-                    result shouldBe tx
+                    outputTopic.forEach {
+                        val result = outputTopics[it]?.readValue()
+
+                        result shouldNotBe null
+                        result shouldBe tx
+                    }
                 }
             }
         }

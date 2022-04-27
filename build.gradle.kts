@@ -61,7 +61,8 @@ dependencies {
     api("io.micrometer:micrometer-registry-prometheus:$micrometerVersion")
 
     val cosmosSdkVersion = "1.1"
-    implementation("com.okp4.grpc:cosmos-sdk:$cosmosSdkVersion")
+    api("com.okp4.grpc:cosmos-sdk:$cosmosSdkVersion")
+    api("com.okp4.grpc:okp4:$cosmosSdkVersion")
 
     val grpcVersion = "1.45.1"
     api("io.grpc:grpc-protobuf:$grpcVersion")
@@ -71,8 +72,15 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jacksonVersion")
 
-    val jxPathVersion = "1.3"
-    api("commons-jxpath:commons-jxpath:$jxPathVersion")
+    val protobufVersion = "3.20.0"
+    api("com.google.protobuf:protobuf-java:$protobufVersion")
+    api("com.google.protobuf:protobuf-java-util:$protobufVersion")
+
+    val classgraphVersion = "4.8.146"
+    api("io.github.classgraph:classgraph:$classgraphVersion")
+
+    val jsonPathVersion = "2.7.0"
+    api("com.jayway.jsonpath:json-path:$jsonPathVersion")
 
     testImplementation(kotlin("test"))
 
