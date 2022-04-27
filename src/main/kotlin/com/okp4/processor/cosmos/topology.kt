@@ -50,6 +50,10 @@ fun topology(props: Properties, typeRegistry: JsonFormat.TypeRegistry): Topology
         JsonFormat.printer()
             .usingTypeRegistry(typeRegistry)
             .omittingInsignificantWhitespace()
+    val jsonPathConf: Configuration = Configuration.builder()
+        .options(Option.SUPPRESS_EXCEPTIONS)
+        .options(Option.AS_PATH_LIST)
+        .build()
 
     return StreamsBuilder().apply {
         stream(topicIn, Consumed.with(Serdes.String(), Serdes.ByteArray()).withName("input"))
@@ -64,7 +68,7 @@ fun topology(props: Properties, typeRegistry: JsonFormat.TypeRegistry): Topology
                 }, Named.`as`("tx-deserialization")
                 )
                 .mapValues({ v ->
-                    getEvaluatedTxList(v, txDispatchRules, formatter, logger)
+                    getEvaluatedTxList(v, txDispatchRules, formatter, logger, jsonPathConf)
                 }, Named.`as`("evaluate-tx"))
                     .flatMapValues(
                         { it ->
@@ -162,25 +166,22 @@ fun topology(props: Properties, typeRegistry: JsonFormat.TypeRegistry): Topology
                                             txDispatchRules: TxDispatchRules,
                                             formatter: JsonFormat.Printer,
                                             logger: Logger,
+                                            jsonPathConf: Configuration,
                                         ): MutableList<Pair<Int, Pair<ByteArray, Result<TxOuterClass.Tx>>>> {
                                             val results = mutableListOf<Pair<Int, Pair<ByteArray, Result<TxOuterClass.Tx>>>>()
                                             if (pair.second.isSuccess) {
                                                 val tx = pair.second.getOrThrow()
                                                 val txJson = formatter.print(tx)
-                                                val conf: Configuration = Configuration.builder()
-                                                    .options(Option.SUPPRESS_EXCEPTIONS)
-                                                    .options(Option.AS_PATH_LIST)
-                                                    .build()
 
                                                 txDispatchRules.rules.forEachIndexed { ruleKey, rule ->
-                                                    try {
-                                                        with(JsonPath.using(conf).parse(txJson)) {
+                                                    runCatching {
+                                                        with(JsonPath.using(jsonPathConf).parse(txJson)) {
                                                             if (this.read<List<String>>(rule.predicate).isNotEmpty()) {
                                                                 results.add(Pair(ruleKey, pair))
                                                             }
                                                         }
-                                                    } catch (e: Exception) {
-                                                        logger.warn("JsonPath rule <${rule.name}> error: ${e.message}")
+                                                    }.onFailure {
+                                                        logger.warn("JsonPath rule <${rule.name}> error: ${it.message}")
                                                     }
                                                 }
                                                 if (results.isEmpty()) {
