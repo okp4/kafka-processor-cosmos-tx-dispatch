@@ -29,6 +29,11 @@ fun TxOuterClass.TxRaw.toTx(): TxOuterClass.Tx {
         .build()
 }
 
+val jsonPathConf: Configuration = Configuration.builder()
+    .options(Option.SUPPRESS_EXCEPTIONS)
+    .options(Option.AS_PATH_LIST)
+    .build()
+
 /**
  * Simple Kafka Stream Processor that consumes a block on a topic and returns his transactions on another.
  */
@@ -50,10 +55,6 @@ fun topology(props: Properties, typeRegistry: JsonFormat.TypeRegistry): Topology
         JsonFormat.printer()
             .usingTypeRegistry(typeRegistry)
             .omittingInsignificantWhitespace()
-    val jsonPathConf: Configuration = Configuration.builder()
-        .options(Option.SUPPRESS_EXCEPTIONS)
-        .options(Option.AS_PATH_LIST)
-        .build()
 
     return StreamsBuilder().apply {
         stream(topicIn, Consumed.with(Serdes.String(), Serdes.ByteArray()).withName("input"))
@@ -66,130 +67,128 @@ fun topology(props: Properties, typeRegistry: JsonFormat.TypeRegistry): Topology
                         }
                     )
                 }, Named.`as`("tx-deserialization")
-                )
-                .mapValues({ v ->
-                    getEvaluatedTxList(v, txDispatchRules, formatter, logger, jsonPathConf)
-                }, Named.`as`("evaluate-tx"))
-                    .flatMapValues(
-                        { it ->
-                            it
-                        }, Named.`as`("flat-evaluated-tx-list")
-                        )
-                        .split()
-                        // If deserialization failed → topic Error
-                        .branch(
-                            { _, v -> v.first == FilteredTxType.ERROR.code },
-                            Branched.withConsumer { ks ->
-                                ks.mapValues({ v ->
-                                    v.second
-                                }, Named.`as`("extract-error-pair"))
-                                        .peek(
-                                            { k, v ->
-                                                v.second.onFailure {
-                                                    logger.warn("Deserialization failed for tx with key <$k>: ${it.message}", it)
-                                                }
-                                            },
-                                            Named.`as`("log-deserialization-failure")
-                                        )
-                                        .mapValues({ pair -> pair.first }, Named.`as`("extract-original-bytearray"))
-                                        .apply {
-                                            if (!topicError.isNullOrEmpty()) {
-                                                logger.info("Failed tx will be sent to the topic $topicError")
-                                                to(
-                                                    topicError, Produced.with(Serdes.String(), Serdes.ByteArray()).withName("error")
-                                                )
-                                            }
-                                        }
+            )
+            .mapValues({ v ->
+                getEvaluatedTxList(v, txDispatchRules, formatter, logger)
+            }, Named.`as`("evaluate-tx"))
+            .flatMapValues(
+                { it ->
+                    it
+                }, Named.`as`("flat-evaluated-tx-list")
+            )
+            .split()
+            // If deserialization failed → topic Error
+            .branch(
+                { _, v -> v.first == FilteredTxType.ERROR.code },
+                Branched.withConsumer { ks ->
+                    ks.mapValues({ v ->
+                        v.second
+                    }, Named.`as`("extract-error-pair"))
+                        .peek(
+                            { k, v ->
+                                v.second.onFailure {
+                                    logger.warn("Deserialization failed for tx with key <$k>: ${it.message}", it)
                                 }
+                            },
+                            Named.`as`("log-deserialization-failure")
+                        )
+                        .mapValues({ pair -> pair.first }, Named.`as`("extract-original-bytearray"))
+                        .apply {
+                            if (!topicError.isNullOrEmpty()) {
+                                logger.info("Failed tx will be sent to the topic $topicError")
+                                to(
+                                    topicError, Produced.with(Serdes.String(), Serdes.ByteArray()).withName("error")
+                                )
+                            }
+                        }
+                }
+            )
+            .apply {
+                txDispatchRules.rules.forEachIndexed { ruleIndex, rule ->
+                    branch(
+                        { _, v ->
+                            v.first == ruleIndex
+                        },
+                        Branched.withConsumer { ks ->
+                            ks.mapValues(
+                                { v ->
+                                    v.second
+                                }, Named.`as`("extract-pair-rule-$ruleIndex-${rule.name}")
                             )
-                            .apply {
-                                txDispatchRules.rules.forEachIndexed { ruleIndex, rule ->
-                                    branch(
-                                        { _, v ->
-                                            v.first == ruleIndex
-                                        },
-                                        Branched.withConsumer { ks ->
-                                            ks.mapValues(
-                                                { v ->
-                                                    v.second
-                                                }, Named.`as`("extract-pair-rule-$ruleIndex-${rule.name}")
-                                                )
-                                                    .mapValues(
-                                                        { v ->
-                                                            v.second.getOrThrow()
-                                                        }, Named.`as`("extract-tx-rule-$ruleIndex-${rule.name}")
-                                                        ).peek(
-                                                            { k, tx -> logger.info("→ tx with key <$k> (${tx.body.messagesList.count()} messages): ${rule.outputTopic}") },
-                                                            Named.`as`("log-tx-rule-$ruleIndex-${rule.name}")
-                                                        ).mapValues(
-                                                            { tx ->
-                                                                tx.toByteArray()
-                                                            }, Named.`as`("convert-unfiltered-txs-to-bytearray-rule-$ruleIndex-${rule.name}")
-                                                            ).to(
-                                                                rule.outputTopic,
-                                                                Produced.with(Serdes.String(), Serdes.ByteArray())
-                                                                    .withName("output-topic-rule-$ruleIndex-${rule.name}")
-                                                            )
-                                                    }
-                                                )
-                                            }
-                                        }
-                                        .defaultBranch(
-                                            // Default to dead letter queue
-                                            Branched.withConsumer { ks ->
-                                                ks.mapValues(
-                                                    { v ->
-                                                        v.second
-                                                    }, Named.`as`("extract-pair-dlq")
-                                                    )
-                                                        .mapValues(
-                                                            { v ->
-                                                                v.second.getOrThrow()
-                                                            }, Named.`as`("extract-tx")
-                                                            ).peek(
-                                                                { k, tx -> logger.info("→ tx with key <$k> (${tx.body.messagesList.count()} messages): unfiltered") },
-                                                                Named.`as`("log-tx-unfiltered")
-                                                            ).mapValues(
-                                                                { tx ->
-                                                                    tx.toByteArray()
-                                                                }, Named.`as`("convert-unfiltered-txs-to-bytearray")
-                                                                ).to(
-                                                                    topicDLQ, Produced.with(Serdes.String(), Serdes.ByteArray()).withName("dlq")
-                                                                )
-                                                        }
-                                                    )
-                                            }.build()
-                                        }
+                                .mapValues(
+                                    { v ->
+                                        v.second.getOrThrow()
+                                    }, Named.`as`("extract-tx-rule-$ruleIndex-${rule.name}")
+                                ).peek(
+                                    { k, tx -> logger.info("→ tx with key <$k> (${tx.body.messagesList.count()} messages): ${rule.outputTopic}") },
+                                    Named.`as`("log-tx-rule-$ruleIndex-${rule.name}")
+                                ).mapValues(
+                                    { tx ->
+                                        tx.toByteArray()
+                                    }, Named.`as`("convert-unfiltered-txs-to-bytearray-rule-$ruleIndex-${rule.name}")
+                                ).to(
+                                    rule.outputTopic,
+                                    Produced.with(Serdes.String(), Serdes.ByteArray())
+                                        .withName("output-topic-rule-$ruleIndex-${rule.name}")
+                                )
+                        }
+                    )
+                }
+            }
+            .defaultBranch(
+                // Default to dead letter queue
+                Branched.withConsumer { ks ->
+                    ks.mapValues(
+                        { v ->
+                            v.second
+                        }, Named.`as`("extract-pair-dlq")
+                    )
+                        .mapValues(
+                            { v ->
+                                v.second.getOrThrow()
+                            }, Named.`as`("extract-tx")
+                        ).peek(
+                            { k, tx -> logger.info("→ tx with key <$k> (${tx.body.messagesList.count()} messages): unfiltered") },
+                            Named.`as`("log-tx-unfiltered")
+                        ).mapValues(
+                            { tx ->
+                                tx.toByteArray()
+                            }, Named.`as`("convert-unfiltered-txs-to-bytearray")
+                        ).to(
+                            topicDLQ, Produced.with(Serdes.String(), Serdes.ByteArray()).withName("dlq")
+                        )
+                }
+            )
+    }.build()
+}
 
-                                        fun getEvaluatedTxList(
-                                            pair: Pair<ByteArray, Result<TxOuterClass.Tx>>,
-                                            txDispatchRules: TxDispatchRules,
-                                            formatter: JsonFormat.Printer,
-                                            logger: Logger,
-                                            jsonPathConf: Configuration,
-                                        ): MutableList<Pair<Int, Pair<ByteArray, Result<TxOuterClass.Tx>>>> {
-                                            val results = mutableListOf<Pair<Int, Pair<ByteArray, Result<TxOuterClass.Tx>>>>()
-                                            if (pair.second.isSuccess) {
-                                                val tx = pair.second.getOrThrow()
-                                                val txJson = formatter.print(tx)
+fun getEvaluatedTxList(
+    pair: Pair<ByteArray, Result<TxOuterClass.Tx>>,
+    txDispatchRules: TxDispatchRules,
+    formatter: JsonFormat.Printer,
+    logger: Logger,
+): MutableList<Pair<Int, Pair<ByteArray, Result<TxOuterClass.Tx>>>> {
+    val results = mutableListOf<Pair<Int, Pair<ByteArray, Result<TxOuterClass.Tx>>>>()
+    if (pair.second.isSuccess) {
+        val tx = pair.second.getOrThrow()
+        val txJson = formatter.print(tx)
 
-                                                txDispatchRules.rules.forEachIndexed { ruleKey, rule ->
-                                                    runCatching {
-                                                        with(JsonPath.using(jsonPathConf).parse(txJson)) {
-                                                            if (this.read<List<String>>(rule.predicate).isNotEmpty()) {
-                                                                results.add(Pair(ruleKey, pair))
-                                                            }
-                                                        }
-                                                    }.onFailure {
-                                                        logger.warn("JsonPath rule <${rule.name}> error: ${it.message}")
-                                                    }
-                                                }
-                                                if (results.isEmpty()) {
-                                                    results.add(Pair(FilteredTxType.UNFILTERED.code, pair))
-                                                }
-                                            } else {
-                                                results.add(Pair(FilteredTxType.ERROR.code, pair))
-                                            }
-                                            return results
-                                        }
-                                        
+        txDispatchRules.rules.forEachIndexed { ruleKey, rule ->
+            runCatching {
+                with(JsonPath.using(jsonPathConf).parse(txJson)) {
+                    if (this.read<List<String>>(rule.predicate).isNotEmpty()) {
+                        results.add(Pair(ruleKey, pair))
+                    }
+                }
+            }.onFailure {
+                logger.warn("JsonPath rule <${rule.name}> error: ${it.message}")
+            }
+        }
+        if (results.isEmpty()) {
+            results.add(Pair(FilteredTxType.UNFILTERED.code, pair))
+        }
+    } else {
+        results.add(Pair(FilteredTxType.ERROR.code, pair))
+    }
+    return results
+}
