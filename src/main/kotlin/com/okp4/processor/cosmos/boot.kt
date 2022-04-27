@@ -12,7 +12,8 @@ private val logger = LoggerFactory.getLogger("com.okp4.processor.cosmos.boot")
 fun boot(
     args: Array<String>,
     topologyProvider: (
-        props: Properties, typeRegistry: JsonFormat.TypeRegistry
+        props: Properties,
+        typeRegistry: JsonFormat.TypeRegistry
     ) -> Topology
 ) {
     logger.info("Booting ${topologyProvider.javaClass.simpleName} topology")
