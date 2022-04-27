@@ -140,6 +140,10 @@ tasks.named<KotlinCompile>("compileTestKotlin") {
     }
 }
 
+configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
+    enableExperimentalRules.set(true)
+}
+
 publishing {
     publications {
         create<MavenPublication>("maven") {
