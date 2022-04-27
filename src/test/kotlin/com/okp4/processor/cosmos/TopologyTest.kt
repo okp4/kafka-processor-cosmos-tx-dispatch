@@ -71,10 +71,10 @@ class TopologyTest : BehaviorSpec({
 
     table(
         headers("case", "tx", "output-topic", "description"),
-        row(1, tx1, listOf("topic-1"), "filter tx to topic-1"),
-        row(2, tx2, listOf("topic-1", "topic-2"), "filter tx to topic-2"),
-        row(3, tx3, listOf("dlq"), "filter tx to dlq"),
-        row(4, txError, listOf("error"), "filter tx to error topic"),
+        row(1, tx1, listOf("topic-1"), "Transaction matches one rule"),
+        row(2, tx2, listOf("topic-1", "topic-2"), "Transaction matches two rules"),
+        row(3, tx3, listOf("dlq"), "Transaction matches no rules"),
+        row(4, txError, listOf("error"), "Faulty transaction goes to error topic"),
     ).forAll { case, tx, outputTopic, description ->
         given("A topology for case <$case>: $description") {
             val config = mutableMapOf(
@@ -116,8 +116,8 @@ class TopologyTest : BehaviorSpec({
             `when`("sending the transaction to the input topic ($inputTopic)") {
                 inputTopic.pipeInput("", tx)
 
-                then("the transaction is sent to <$outputTopic> topic") {
-                    outputTopic.forEach {
+                outputTopic.forEach {
+                    then("the transaction is sent to <$it> topic") {
                         val result = outputTopics[it]?.readValue()
 
                         result shouldNotBe null
