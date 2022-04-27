@@ -74,7 +74,7 @@ class TopologyTest : BehaviorSpec({
         row(1, tx1, listOf("topic-1"), "Transaction matches one rule"),
         row(2, tx2, listOf("topic-1", "topic-2"), "Transaction matches two rules"),
         row(3, tx3, listOf("dlq"), "Transaction matches no rules"),
-        row(4, txError, listOf("error"), "Faulty transaction goes to error topic"),
+        row(4, txError, listOf("error"), "Faulty transaction goes to error topic")
     ).forAll { case, tx, outputTopic, description ->
         given("A topology for case <$case>: $description") {
             val config = mutableMapOf(
@@ -110,7 +110,7 @@ class TopologyTest : BehaviorSpec({
                     "topic-3",
                     stringSerde.deserializer(),
                     byteArraySerde.deserializer()
-                ),
+                )
             )
 
             `when`("sending the transaction to the input topic ($inputTopic)") {

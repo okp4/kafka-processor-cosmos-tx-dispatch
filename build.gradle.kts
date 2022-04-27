@@ -48,6 +48,10 @@ repositories {
     }
 }
 
+ktlint {
+    version.set("0.45.2")
+}
+
 dependencies {
     val kafkaStreamVersion = "3.1.0"
     api("org.apache.kafka:kafka-streams:$kafkaStreamVersion")
@@ -142,6 +146,14 @@ tasks.named<KotlinCompile>("compileTestKotlin") {
 
 configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
     enableExperimentalRules.set(true)
+    verbose.set(true)
+    outputToConsole.set(true)
+    disabledRules.set(
+        setOf(
+            "experimental:argument-list-wrapping",
+            "no-wildcard-imports"
+        )
+    )
 }
 
 publishing {

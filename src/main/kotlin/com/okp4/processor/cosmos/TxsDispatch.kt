@@ -13,7 +13,7 @@ data class DispatchRule(
     @JsonProperty("topic")
     val outputTopic: String,
     val predicate: String,
-    val name: String,
+    val name: String
 )
 
 data class TxDispatchRules(
