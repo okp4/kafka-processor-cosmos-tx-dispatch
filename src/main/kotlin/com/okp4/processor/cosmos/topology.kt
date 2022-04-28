@@ -177,28 +177,25 @@ fun getEvaluatedTxList(
     txDispatchRules: TxDispatchRules,
     formatter: JsonFormat.Printer,
     logger: Logger
-): MutableList<Pair<Int, Pair<ByteArray, Result<TxOuterClass.Tx>>>> {
-    val results = mutableListOf<Pair<Int, Pair<ByteArray, Result<TxOuterClass.Tx>>>>()
-    if (pair.second.isSuccess) {
-        val tx = pair.second.getOrThrow()
-        val txJson = formatter.print(tx)
-
-        txDispatchRules.rules.forEachIndexed { ruleKey, rule ->
-            runCatching {
-                with(JsonPath.using(jsonPathConf).parse(txJson)) {
-                    if (this.read<List<String>>(rule.predicate).isNotEmpty()) {
-                        results.add(Pair(ruleKey, pair))
+): List<Pair<Int, Pair<ByteArray, Result<TxOuterClass.Tx>>>> {
+    return mutableListOf<Pair<Int, Pair<ByteArray, Result<TxOuterClass.Tx>>>>().apply {
+        pair.second.onSuccess { tx ->
+            formatter.print(tx).let { txJson ->
+                txDispatchRules.rules.forEachIndexed { ruleKey, rule ->
+                    runCatching {
+                        with(JsonPath.using(jsonPathConf).parse(txJson)) {
+                            if (this@with.read<List<String>>(rule.predicate).isNotEmpty()) {
+                                this@apply.add(Pair(ruleKey, pair))
+                            }
+                        }
+                    }.onFailure {
+                        logger.warn("JsonPath rule <${rule.name}> error: ${it.message}")
                     }
                 }
-            }.onFailure {
-                logger.warn("JsonPath rule <${rule.name}> error: ${it.message}")
             }
+            this@apply.takeIf { it.isEmpty() }?.add(Pair(FilteredTxType.UNFILTERED.code, pair))
+        }.onFailure {
+            this@apply.add(Pair(FilteredTxType.ERROR.code, pair))
         }
-        if (results.isEmpty()) {
-            results.add(Pair(FilteredTxType.UNFILTERED.code, pair))
-        }
-    } else {
-        results.add(Pair(FilteredTxType.ERROR.code, pair))
     }
-    return results
 }
