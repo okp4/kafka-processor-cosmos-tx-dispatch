@@ -17,7 +17,8 @@ private val logger = LoggerFactory.getLogger("com.okp4.processor.cosmos.stream")
 
 fun startStream(topology: Topology, props: Properties) {
     KafkaStreams(
-        topology, props
+        topology,
+        props
     ).run {
         val latch = CountDownLatch(1)
 

@@ -39,6 +39,17 @@ afterEvaluate {
 
 repositories {
     mavenCentral()
+    maven {
+        url = uri("https://maven.pkg.github.com/okp4/okp4-cosmos-proto")
+        credentials {
+            username = project.property("maven.credentials.username") as String
+            password = project.property("maven.credentials.password") as String
+        }
+    }
+}
+
+ktlint {
+    version.set("0.45.2")
 }
 
 dependencies {
@@ -52,6 +63,28 @@ dependencies {
     val micrometerVersion = "1.8.5"
     api("io.micrometer:micrometer-core:$micrometerVersion")
     api("io.micrometer:micrometer-registry-prometheus:$micrometerVersion")
+
+    val cosmosSdkVersion = "1.1"
+    api("com.okp4.grpc:cosmos-sdk:$cosmosSdkVersion")
+    api("com.okp4.grpc:okp4:$cosmosSdkVersion")
+
+    val grpcVersion = "1.45.1"
+    api("io.grpc:grpc-protobuf:$grpcVersion")
+
+    val jacksonVersion = "2.11.2"
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
+    implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jacksonVersion")
+
+    val protobufVersion = "3.20.0"
+    api("com.google.protobuf:protobuf-java:$protobufVersion")
+    api("com.google.protobuf:protobuf-java-util:$protobufVersion")
+
+    val classgraphVersion = "4.8.146"
+    api("io.github.classgraph:classgraph:$classgraphVersion")
+
+    val jsonPathVersion = "2.7.0"
+    api("com.jayway.jsonpath:json-path:$jsonPathVersion")
 
     testImplementation(kotlin("test"))
 
@@ -109,6 +142,18 @@ tasks.named<KotlinCompile>("compileTestKotlin") {
         jvmTarget = "11"
         allWarningsAsErrors = false
     }
+}
+
+configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
+    enableExperimentalRules.set(true)
+    verbose.set(true)
+    outputToConsole.set(true)
+    disabledRules.set(
+        setOf(
+            "experimental:argument-list-wrapping",
+            "no-wildcard-imports"
+        )
+    )
 }
 
 publishing {
