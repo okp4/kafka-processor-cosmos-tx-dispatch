@@ -76,7 +76,7 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jacksonVersion")
 
-    val protobufVersion = "3.20.0"
+    val protobufVersion = "3.20.1"
     api("com.google.protobuf:protobuf-java:$protobufVersion")
     api("com.google.protobuf:protobuf-java-util:$protobufVersion")
 
