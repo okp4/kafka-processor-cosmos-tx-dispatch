@@ -86,7 +86,14 @@ class TopologyTest : BehaviorSpec({
                 "rules.path" to (this::class.java.classLoader.getResource("rules_example.yaml")?.path ?: "")
             ).toProperties()
 
-            val topology = topology(config, protoTypeRegistry).also { println(it.describe()) }
+            val topology = TopologyProducer().apply {
+                topicError = config.getProperty("topic.error")
+                topicIn = config.getProperty("topic.in")
+                topicDLQ = config.getProperty("topic.dlq")
+                txsDispatch = TxsDispatch().apply {
+                    configDocPath = config.getProperty("rules.path")
+                }
+            }.buildTopology()
             val testDriver = TopologyTestDriver(topology, config)
             val inputTopic = testDriver.createInputTopic("in", stringSerde.serializer(), byteArraySerde.serializer())
             val outputTopics = mapOf(

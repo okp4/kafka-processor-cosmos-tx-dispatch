@@ -21,7 +21,6 @@ group = "com.okp4"
 description = """A Kafka Streams Processor using Quarkus that dispatch transactions based on
 their types"""
 
-
 val pullReflectionConfig: Configuration by configurations.creating
 configurations {
     implementation.extendsFrom(pullReflectionConfig)

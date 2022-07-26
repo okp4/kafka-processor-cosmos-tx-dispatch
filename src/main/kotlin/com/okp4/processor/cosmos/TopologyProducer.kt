@@ -17,6 +17,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import javax.enterprise.context.ApplicationScoped
 import javax.enterprise.inject.Produces
+import javax.inject.Inject
 
 @ApplicationScoped
 enum class FilteredTxType(val code: Int) {
@@ -51,11 +52,14 @@ class TopologyProducer {
     @field:ConfigProperty(name = "topic.error", defaultValue = "")
     var topicError: String? = null
 
+    @Inject
+    lateinit var txsDispatch: TxsDispatch
+
     @Produces
     fun buildTopology(): Topology {
         val logger: Logger = LoggerFactory.getLogger("com.okp4.processor.cosmos.topology")
 
-        val txDispatchRules = TxsDispatch().getTxDispatchList()
+        val txDispatchRules = txsDispatch.getTxDispatchList()
 
         val formatter =
             JsonFormat.printer()
