@@ -12,55 +12,54 @@ import org.apache.kafka.streams.kstream.Branched
 import org.apache.kafka.streams.kstream.Consumed
 import org.apache.kafka.streams.kstream.Named
 import org.apache.kafka.streams.kstream.Produced
+import org.eclipse.microprofile.config.inject.ConfigProperty
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.util.*
 import javax.enterprise.context.ApplicationScoped
 import javax.enterprise.inject.Produces
 
+@ApplicationScoped
 enum class FilteredTxType(val code: Int) {
     ERROR(-1),
     UNFILTERED(-2),
 }
 
-fun TxOuterClass.TxRaw.toTx(): TxOuterClass.Tx {
-    return TxOuterClass.Tx.newBuilder()
-        .addAllSignatures(this.signaturesList)
-        .setBody(TxOuterClass.TxBody.parseFrom(this.bodyBytes))
-        .setAuthInfo(TxOuterClass.AuthInfo.parseFrom(this.authInfoBytes))
-        .build()
-}
-
-val jsonPathConf: Configuration = Configuration.builder()
-    .options(Option.SUPPRESS_EXCEPTIONS)
-    .options(Option.AS_PATH_LIST)
-    .build()
-
 /**
  * Simple Kafka Stream Processor that consumes a block on a topic and returns his transactions on another.
  */
-
 @ApplicationScoped
 class TopologyProducer {
+    fun TxOuterClass.TxRaw.toTx(): TxOuterClass.Tx {
+        return TxOuterClass.Tx.newBuilder()
+            .addAllSignatures(this.signaturesList)
+            .setBody(TxOuterClass.TxBody.parseFrom(this.bodyBytes))
+            .setAuthInfo(TxOuterClass.AuthInfo.parseFrom(this.authInfoBytes))
+            .build()
+    }
+
+    val jsonPathConf: Configuration = Configuration.builder()
+        .options(Option.SUPPRESS_EXCEPTIONS)
+        .options(Option.AS_PATH_LIST)
+        .build()
+
+    @field:ConfigProperty(name = "topic.in", defaultValue = "topic.in")
+    lateinit var topicIn: String
+
+    @field:ConfigProperty(name = "topic.dlq", defaultValue = "topic.dlq")
+    lateinit var topicDLQ: String
+
+    @field:ConfigProperty(name = "topic.error", defaultValue = "")
+    var topicError: String? = null
 
     @Produces
-    fun topology(props: Properties, typeRegistry: JsonFormat.TypeRegistry): Topology {
+    fun buildTopology(): Topology {
         val logger: Logger = LoggerFactory.getLogger("com.okp4.processor.cosmos.topology")
-        val topicIn = requireNotNull(props.getProperty("topic.in")) {
-            "Option 'topic.in' was not specified."
-        }
-        val topicDLQ = requireNotNull(props.getProperty("topic.dlq")) {
-            "Option 'topic.dlq' was not specified."
-        }
-        val topicError: String? = props.getProperty("topic.error")
-        val txDispatchRules = TxsDispatch(
-            requireNotNull(props.getProperty("rules.path")) {
-                "Option 'rules.path' was not specified."
-            }
-        ).getTxDispatchList()
-        val formatter: JsonFormat.Printer =
+
+        val txDispatchRules = TxsDispatch().getTxDispatchList()
+
+        val formatter =
             JsonFormat.printer()
-                .usingTypeRegistry(typeRegistry)
+                .usingTypeRegistry(ProtoTypeRegistry.protoTypeRegistry)
                 .omittingInsignificantWhitespace()
 
         return StreamsBuilder().apply {
@@ -114,7 +113,7 @@ class TopologyProducer {
                     }
                 )
                 .apply {
-                    txDispatchRules.rules.forEachIndexed { ruleIndex, rule ->
+                    txDispatchRules.rules?.forEachIndexed { ruleIndex, rule ->
                         branch(
                             { _, v ->
                                 v.first == ruleIndex
@@ -124,25 +123,25 @@ class TopologyProducer {
                                     { v ->
                                         v.second
                                     },
-                                    Named.`as`("extract-pair-rule-$ruleIndex-${rule.name}")
+                                    Named.`as`("extract-pair-rule-$ruleIndex-${rule?.name}")
                                 )
                                     .mapValues(
                                         { v ->
                                             v.second.getOrThrow()
                                         },
-                                        Named.`as`("extract-tx-rule-$ruleIndex-${rule.name}")
+                                        Named.`as`("extract-tx-rule-$ruleIndex-${rule?.name}")
                                     ).peek(
-                                        { k, tx -> logger.info("→ tx with key <$k> (${tx.body.messagesList.count()} messages): ${rule.outputTopic}") },
-                                        Named.`as`("log-tx-rule-$ruleIndex-${rule.name}")
+                                        { k, tx -> logger.info("→ tx with key <$k> (${tx.body.messagesList.count()} messages): ${rule?.outputTopic}") },
+                                        Named.`as`("log-tx-rule-$ruleIndex-${rule?.name}")
                                     ).mapValues(
                                         { tx ->
                                             tx.toByteArray()
                                         },
-                                        Named.`as`("convert-unfiltered-txs-to-bytearray-rule-$ruleIndex-${rule.name}")
+                                        Named.`as`("convert-unfiltered-txs-to-bytearray-rule-$ruleIndex-${rule?.name}")
                                     ).to(
-                                        rule.outputTopic,
+                                        rule?.outputTopic,
                                         Produced.with(Serdes.String(), Serdes.ByteArray())
-                                            .withName("output-topic-rule-$ruleIndex-${rule.name}")
+                                            .withName("output-topic-rule-$ruleIndex-${rule?.name}")
                                     )
                             }
                         )
@@ -188,15 +187,15 @@ class TopologyProducer {
         return mutableListOf<Pair<Int, Pair<ByteArray, Result<TxOuterClass.Tx>>>>().apply {
             pair.second.onSuccess { tx ->
                 formatter.print(tx).let { txJson ->
-                    txDispatchRules.rules.forEachIndexed { ruleKey, rule ->
+                    txDispatchRules.rules?.forEachIndexed { ruleKey, rule ->
                         runCatching {
                             with(JsonPath.using(jsonPathConf).parse(txJson)) {
-                                if (this@with.read<List<String>>(rule.predicate).isNotEmpty()) {
+                                if (this@with.read<List<String>>(rule?.predicate).isNotEmpty()) {
                                     this@apply.add(Pair(ruleKey, pair))
                                 }
                             }
                         }.onFailure {
-                            logger.warn("JsonPath rule <${rule.name}> error: ${it.message}")
+                            logger.warn("JsonPath rule <${rule?.name}> error: ${it.message}")
                         }
                     }
                 }

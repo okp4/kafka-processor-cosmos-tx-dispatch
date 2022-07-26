@@ -74,6 +74,22 @@ dependencies {
     implementation("io.quarkus:quarkus-arc")
     implementation("io.quarkus:quarkus-smallrye-health")
 
+    val cosmosSdkVersion = "1.2"
+    implementation("com.okp4.grpc:cosmos-sdk:$cosmosSdkVersion")
+    pullReflectionConfig("com.okp4.grpc:cosmos-sdk:$cosmosSdkVersion")
+
+    val grpcVersion = "1.46.0"
+    implementation("io.grpc:grpc-protobuf:$grpcVersion")
+    implementation("io.github.classgraph:classgraph:4.8.147")
+
+    val jacksonVersion = "2.13.3"
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
+    implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jacksonVersion")
+
+    val jsonPathVersion = "2.7.0"
+    api("com.jayway.jsonpath:json-path:$jsonPathVersion")
+
     testImplementation(kotlin("test"))
 
     val kotestVersion = "5.4.2"
