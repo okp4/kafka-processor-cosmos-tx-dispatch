@@ -38,7 +38,6 @@ This project targets the [JVM 11+](https://openjdk.java.net/), so be sure to hav
 
 This project relies on the [Gradle](https://gradle.org/) build system.
 
-
 If you are on Windows then open a command line, go into the root directory and run:
 
 ```sh
