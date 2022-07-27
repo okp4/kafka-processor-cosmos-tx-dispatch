@@ -23,7 +23,7 @@ their types"""
 
 val pullReflectionConfig: Configuration by configurations.creating
 configurations {
-    implementation.extendsFrom(pullReflectionConfig)
+    implementation.get().extendsFrom(pullReflectionConfig)
 }
 
 val quarkusPlatformGroupId: String by project
