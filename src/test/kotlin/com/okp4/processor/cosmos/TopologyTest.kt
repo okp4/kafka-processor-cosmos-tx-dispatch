@@ -17,6 +17,7 @@ import io.kotest.matchers.shouldNotBe
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.TopologyTestDriver
+import java.util.*
 import java.util.Base64.getDecoder
 
 fun String.b64ToByteString(): ByteString = copyFrom(getDecoder().decode(this))
@@ -102,7 +103,7 @@ class TopologyTest : BehaviorSpec({
             ).toProperties()
 
             val topology = TopologyProducer().apply {
-                topicError = config.getProperty("topic.error")
+                topicError = Optional.of(config.getProperty("topic.error"))
                 topicIn = config.getProperty("topic.in")
                 topicDLQ = config.getProperty("topic.dlq")
                 txsDispatch = TxsDispatch().apply {
