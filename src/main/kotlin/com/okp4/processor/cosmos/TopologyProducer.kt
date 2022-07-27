@@ -1,5 +1,7 @@
 package com.okp4.processor.cosmos
 
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.util.JsonFormat
 import com.jayway.jsonpath.Configuration
 import com.jayway.jsonpath.JsonPath
@@ -24,6 +26,18 @@ enum class FilteredTxType(val code: Int) {
     ERROR(-1),
     UNFILTERED(-2),
 }
+
+@ApplicationScoped
+data class DLQ(
+    @field:JsonProperty("txJson")
+    val txJson: String? = null,
+
+    @field:JsonProperty("txBytes")
+    val txBytes: ByteArray? = null,
+
+    @field:JsonProperty("message")
+    val message: String? = null,
+)
 
 /**
  * Simple Kafka Stream Processor that consumes a block on a topic and returns his transactions on another.
@@ -170,12 +184,17 @@ class TopologyProducer {
                                 Named.`as`("log-tx-unfiltered")
                             ).mapValues(
                                 { tx ->
-                                    tx.toByteArray()
+                                    ObjectMapper().writeValueAsString(
+                                        DLQ(
+                                            txJson = formatter.print(tx),
+                                            txBytes = tx.toByteArray()
+                                        )
+                                    )
                                 },
                                 Named.`as`("convert-unfiltered-txs-to-bytearray")
                             ).to(
                                 topicDLQ,
-                                Produced.with(Serdes.String(), Serdes.ByteArray()).withName("dlq")
+                                Produced.with(Serdes.String(), Serdes.String()).withName("dlq")
                             )
                     }
                 )

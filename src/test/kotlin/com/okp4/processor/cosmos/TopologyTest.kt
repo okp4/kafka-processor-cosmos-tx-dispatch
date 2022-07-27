@@ -1,7 +1,9 @@
 package com.okp4.processor.cosmos
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.ByteString
 import com.google.protobuf.ByteString.copyFrom
+import com.google.protobuf.util.JsonFormat
 import cosmos.bank.v1beta1.Tx
 import cosmos.base.v1beta1.CoinOuterClass
 import cosmos.tx.v1beta1.TxOuterClass
@@ -65,6 +67,19 @@ val tx3: ByteArray = TxOuterClass.Tx.newBuilder()
     ).build().toByteArray()
 val txError: ByteArray = "test".toByteArray()
 
+val formatter: JsonFormat.Printer =
+    JsonFormat.printer()
+        .usingTypeRegistry(ProtoTypeRegistry.protoTypeRegistry)
+        .omittingInsignificantWhitespace()
+
+fun TxOuterClass.TxRaw.toTx(): TxOuterClass.Tx {
+    return TxOuterClass.Tx.newBuilder()
+        .addAllSignatures(this.signaturesList)
+        .setBody(TxOuterClass.TxBody.parseFrom(this.bodyBytes))
+        .setAuthInfo(TxOuterClass.AuthInfo.parseFrom(this.authInfoBytes))
+        .build()
+}
+
 class TopologyTest : BehaviorSpec({
     val stringSerde = Serdes.StringSerde()
     val byteArraySerde = Serdes.ByteArraySerde()
@@ -97,7 +112,7 @@ class TopologyTest : BehaviorSpec({
             val testDriver = TopologyTestDriver(topology, config)
             val inputTopic = testDriver.createInputTopic("in", stringSerde.serializer(), byteArraySerde.serializer())
             val outputTopics = mapOf(
-                "dlq" to testDriver.createOutputTopic("dlq", stringSerde.deserializer(), byteArraySerde.deserializer()),
+                "dlq" to testDriver.createOutputTopic("dlq", stringSerde.deserializer(), stringSerde.deserializer()),
                 "error" to testDriver.createOutputTopic(
                     "error",
                     stringSerde.deserializer(),
@@ -128,7 +143,17 @@ class TopologyTest : BehaviorSpec({
                         val result = outputTopics[it]?.readValue()
 
                         result shouldNotBe null
-                        result shouldBe tx
+                        if (it == "dlq") {
+                            result shouldBe ObjectMapper().writeValueAsString(
+                                DLQ(
+                                    txJson = formatter.print(TxOuterClass.TxRaw.parseFrom(tx).toTx()),
+                                    txBytes = tx,
+                                    message = null
+                                )
+                            )
+                        } else {
+                            result shouldBe tx
+                        }
                     }
                 }
             }
