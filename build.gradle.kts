@@ -68,10 +68,10 @@ dependencies {
     api("com.okp4.grpc:cosmos-sdk:$cosmosSdkVersion")
     api("com.okp4.grpc:okp4:$cosmosSdkVersion")
 
-    val grpcVersion = "1.45.1"
+    val grpcVersion = "1.49.0"
     api("io.grpc:grpc-protobuf:$grpcVersion")
 
-    val jacksonVersion = "2.11.2"
+    val jacksonVersion = "2.13.3"
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
     implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jacksonVersion")
