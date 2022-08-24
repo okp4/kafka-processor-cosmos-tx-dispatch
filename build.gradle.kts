@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.6.21"
+    kotlin("jvm") version "1.7.10"
     application
 
     id("maven-publish")
@@ -71,7 +71,7 @@ dependencies {
     val grpcVersion = "1.49.0"
     api("io.grpc:grpc-protobuf:$grpcVersion")
 
-    val jacksonVersion = "2.11.2"
+    val jacksonVersion = "2.13.3"
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
     implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jacksonVersion")
