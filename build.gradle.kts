@@ -68,7 +68,7 @@ dependencies {
     api("com.okp4.grpc:cosmos-sdk:$cosmosSdkVersion")
     api("com.okp4.grpc:okp4:$cosmosSdkVersion")
 
-    val grpcVersion = "1.45.1"
+    val grpcVersion = "1.49.0"
     api("io.grpc:grpc-protobuf:$grpcVersion")
 
     val jacksonVersion = "2.11.2"
@@ -88,7 +88,7 @@ dependencies {
 
     testImplementation(kotlin("test"))
 
-    val kotestVersion = "5.2.3"
+    val kotestVersion = "5.4.2"
     testImplementation("io.kotest:kotest-runner-junit5:$kotestVersion")
     testImplementation("io.kotest:kotest-assertions-core:$kotestVersion")
     testImplementation("io.kotest:kotest-property:$kotestVersion")
