@@ -53,7 +53,7 @@ ktlint {
 }
 
 dependencies {
-    val kafkaStreamVersion = "3.1.0"
+    val kafkaStreamVersion = "3.2.1"
     api("org.apache.kafka:kafka-streams:$kafkaStreamVersion")
 
     val slf4jVersion = "1.7.36"
@@ -68,7 +68,7 @@ dependencies {
     api("com.okp4.grpc:cosmos-sdk:$cosmosSdkVersion")
     api("com.okp4.grpc:okp4:$cosmosSdkVersion")
 
-    val grpcVersion = "1.45.1"
+    val grpcVersion = "1.49.0"
     api("io.grpc:grpc-protobuf:$grpcVersion")
 
     val jacksonVersion = "2.11.2"
