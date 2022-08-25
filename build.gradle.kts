@@ -80,7 +80,7 @@ dependencies {
     api("com.google.protobuf:protobuf-java:$protobufVersion")
     api("com.google.protobuf:protobuf-java-util:$protobufVersion")
 
-    val classgraphVersion = "4.8.146"
+    val classgraphVersion = "4.8.149"
     api("io.github.classgraph:classgraph:$classgraphVersion")
 
     val jsonPathVersion = "2.7.0"
