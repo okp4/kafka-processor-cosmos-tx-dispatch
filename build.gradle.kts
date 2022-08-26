@@ -56,7 +56,7 @@ dependencies {
     val kafkaStreamVersion = "3.2.1"
     api("org.apache.kafka:kafka-streams:$kafkaStreamVersion")
 
-    val slf4jVersion = "1.7.36"
+    val slf4jVersion = "2.0.0"
     api("org.slf4j:slf4j-api:$slf4jVersion")
     api("org.slf4j:slf4j-log4j12:$slf4jVersion")
 
