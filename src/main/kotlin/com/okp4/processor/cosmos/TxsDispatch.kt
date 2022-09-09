@@ -5,23 +5,36 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.MissingKotlinParameterException
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import org.eclipse.microprofile.config.inject.ConfigProperty
 import java.nio.file.Files
 import java.nio.file.Path
 import java.text.ParseException
+import javax.enterprise.context.ApplicationScoped
 
+@ApplicationScoped
 data class DispatchRule(
-    @JsonProperty("topic")
-    val outputTopic: String,
-    val predicate: String,
-    val name: String
+    @field:JsonProperty("topic")
+    val outputTopic: String? = null,
+
+    @field:JsonProperty("predicate")
+    val predicate: String? = null,
+
+    @field:JsonProperty("name")
+    val name: String? = null,
 )
 
+@ApplicationScoped
 data class TxDispatchRules(
-    val rules: List<DispatchRule>
+    @field:JsonProperty("rules")
+    val rules: List<DispatchRule?>? = null,
 )
 
-class TxsDispatch(private val configDocPath: String) {
+@ApplicationScoped
+class TxsDispatch() {
     private var mapper: ObjectMapper = ObjectMapper(YAMLFactory())
+
+    @field:ConfigProperty(name = "rules.path", defaultValue = "rules.path")
+    lateinit var configDocPath: String
 
     init {
         mapper.registerKotlinModule()

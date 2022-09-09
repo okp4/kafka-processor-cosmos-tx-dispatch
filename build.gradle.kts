@@ -1,8 +1,11 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.io.FileOutputStream
+import java.util.zip.ZipFile
 
 plugins {
     kotlin("jvm") version "1.7.10"
-    application
+    kotlin("plugin.allopen") version "1.6.10"
+    id("io.quarkus")
 
     id("maven-publish")
 
@@ -10,12 +13,22 @@ plugins {
     id("io.gitlab.arturbosch.detekt") version "1.21.0"
 }
 
-group = "com.okp4"
-description = "A Kafka Streams Processor"
-
-application {
-    mainClass.set("com.okp4.processor.cosmos.MainKt")
+ktlint {
+    version.set("0.45.2")
 }
+
+group = "com.okp4"
+description = """A Kafka Streams Processor using Quarkus that dispatch transactions based on
+their types"""
+
+val pullReflectionConfig: Configuration by configurations.creating
+configurations {
+    implementation.get().extendsFrom(pullReflectionConfig)
+}
+
+val quarkusPlatformGroupId: String by project
+val quarkusPlatformArtifactId: String by project
+val quarkusPlatformVersion: String by project
 
 fun prepareVersion(): String {
     val digits = (project.property("project.version") as String).split(".")
@@ -48,40 +61,30 @@ repositories {
     }
 }
 
-ktlint {
-    version.set("0.45.2")
-}
-
 dependencies {
-    val kafkaStreamVersion = "3.2.1"
-    api("org.apache.kafka:kafka-streams:$kafkaStreamVersion")
+    implementation(enforcedPlatform("$quarkusPlatformGroupId:$quarkusPlatformArtifactId:$quarkusPlatformVersion"))
+    implementation(enforcedPlatform("$quarkusPlatformGroupId:quarkus-camel-bom:$quarkusPlatformVersion"))
+    implementation("io.quarkus:quarkus-core-deployment")
+    implementation("io.quarkus:quarkus-kotlin")
+    implementation("org.apache.camel.quarkus:camel-quarkus-protobuf")
+    implementation("io.quarkus:quarkus-kafka-streams")
+    implementation("io.quarkus:quarkus-micrometer")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    implementation("io.quarkus:quarkus-arc")
+    implementation("io.quarkus:quarkus-smallrye-health")
 
-    val slf4jVersion = "1.7.36"
-    api("org.slf4j:slf4j-api:$slf4jVersion")
-    api("org.slf4j:slf4j-log4j12:$slf4jVersion")
+    val cosmosSdkVersion = "1.2"
+    implementation("com.okp4.grpc:cosmos-sdk:$cosmosSdkVersion")
+    pullReflectionConfig("com.okp4.grpc:cosmos-sdk:$cosmosSdkVersion")
 
-    val micrometerVersion = "1.9.3"
-    api("io.micrometer:micrometer-core:$micrometerVersion")
-    api("io.micrometer:micrometer-registry-prometheus:$micrometerVersion")
+    val grpcVersion = "1.46.0"
+    implementation("io.grpc:grpc-protobuf:$grpcVersion")
+    implementation("io.github.classgraph:classgraph:4.8.147")
 
-    val cosmosSdkVersion = "1.1"
-    api("com.okp4.grpc:cosmos-sdk:$cosmosSdkVersion")
-    api("com.okp4.grpc:okp4:$cosmosSdkVersion")
-
-    val grpcVersion = "1.49.0"
-    api("io.grpc:grpc-protobuf:$grpcVersion")
-
-    val jacksonVersion = "2.13.4"
+    val jacksonVersion = "2.13.3"
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
     implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jacksonVersion")
-
-    val protobufVersion = "3.21.5"
-    api("com.google.protobuf:protobuf-java:$protobufVersion")
-    api("com.google.protobuf:protobuf-java-util:$protobufVersion")
-
-    val classgraphVersion = "4.8.149"
-    api("io.github.classgraph:classgraph:$classgraphVersion")
 
     val jsonPathVersion = "2.7.0"
     api("com.jayway.jsonpath:json-path:$jsonPathVersion")
@@ -94,23 +97,38 @@ dependencies {
     testImplementation("io.kotest:kotest-property:$kotestVersion")
     testImplementation("io.kotest:kotest-framework-datatest:$kotestVersion")
 
+    val kafkaStreamVersion = "3.1.0"
     testImplementation("org.apache.kafka:kafka-streams-test-utils:$kafkaStreamVersion")
+
+    implementation("io.kotest:kotest-assertions-json:5.2.3")
+}
+
+allOpen {
+    annotation("javax.ws.rs.Path")
+    annotation("javax.enterprise.context.ApplicationScoped")
+    annotation("io.quarkus.test.junit.QuarkusTest")
 }
 
 tasks {
-    val fatJar = register<Jar>("fatJar") {
-        dependsOn.addAll(listOf("compileJava", "compileKotlin", "processResources"))
-        archiveClassifier.set("standalone")
-        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-        manifest { attributes(mapOf("Main-Class" to application.mainClass)) }
-        val sourcesMain = sourceSets.main.get()
-        val contents = configurations.runtimeClasspath.get()
-            .map { if (it.isDirectory) it else zipTree(it) } +
-            sourcesMain.output
-        from(contents)
+    val task = register("reflectionConfig") {
+        val configPath = "reflection-config.json"
+        val configs = pullReflectionConfig.files.joinToString(",") {
+            val zip = ZipFile(it)
+            val entry = zip.getEntry(configPath)
+
+            buildDir.mkdirs()
+            val out = File(buildDir, "${it.name}-${entry.name}")
+            out.createNewFile()
+            zip.getInputStream(entry).transferTo(FileOutputStream(out))
+
+            out.path
+        }
+
+        System.setProperty("quarkus.native.additional-build-args", "-H:ReflectionConfigurationFiles=$configs")
     }
+
     build {
-        dependsOn(fatJar)
+        dependsOn.add(task)
     }
 }
 
@@ -144,23 +162,10 @@ tasks.named<KotlinCompile>("compileTestKotlin") {
     }
 }
 
-configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
-    enableExperimentalRules.set(true)
-    verbose.set(true)
-    outputToConsole.set(true)
-    disabledRules.set(
-        setOf(
-            "experimental:argument-list-wrapping",
-            "no-wildcard-imports"
-        )
-    )
-}
-
 publishing {
     publications {
         create<MavenPublication>("maven") {
             from(components["java"])
-            artifact(tasks["fatJar"])
         }
     }
     repositories {
