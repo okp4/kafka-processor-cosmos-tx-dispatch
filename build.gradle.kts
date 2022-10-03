@@ -100,7 +100,7 @@ dependencies {
     val kafkaStreamVersion = "3.3.0"
     testImplementation("org.apache.kafka:kafka-streams-test-utils:$kafkaStreamVersion")
 
-    implementation("io.kotest:kotest-assertions-json:5.4.2")
+    implementation("io.kotest:kotest-assertions-json:5.5.0")
 }
 
 allOpen {
