@@ -77,7 +77,7 @@ dependencies {
     implementation("com.okp4.grpc:cosmos-sdk:$cosmosSdkVersion")
     pullReflectionConfig("com.okp4.grpc:cosmos-sdk:$cosmosSdkVersion")
 
-    val grpcVersion = "1.49.1"
+    val grpcVersion = "1.49.2"
     implementation("io.grpc:grpc-protobuf:$grpcVersion")
     implementation("io.github.classgraph:classgraph:4.8.149")
 
@@ -91,7 +91,7 @@ dependencies {
 
     testImplementation(kotlin("test"))
 
-    val kotestVersion = "5.4.2"
+    val kotestVersion = "5.5.0"
     testImplementation("io.kotest:kotest-runner-junit5:$kotestVersion")
     testImplementation("io.kotest:kotest-assertions-core:$kotestVersion")
     testImplementation("io.kotest:kotest-property:$kotestVersion")
