@@ -79,7 +79,7 @@ dependencies {
 
     val grpcVersion = "1.50.2"
     implementation("io.grpc:grpc-protobuf:$grpcVersion")
-    implementation("io.github.classgraph:classgraph:4.8.150")
+    implementation("io.github.classgraph:classgraph:4.8.151")
 
     val jacksonVersion = "2.14.0"
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
