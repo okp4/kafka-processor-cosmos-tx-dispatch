@@ -86,7 +86,7 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jacksonVersion")
 
-    val jsonPathVersion = "2.7.0"
+    val jsonPathVersion = "2.8.0"
     api("com.jayway.jsonpath:json-path:$jsonPathVersion")
 
     testImplementation(kotlin("test"))
