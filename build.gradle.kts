@@ -4,7 +4,7 @@ import java.util.zip.ZipFile
 
 plugins {
     kotlin("jvm") version "1.9.0"
-    kotlin("plugin.allopen") version "1.9.0"
+    kotlin("plugin.allopen") version "1.9.10"
     id("io.quarkus")
 
     id("maven-publish")
